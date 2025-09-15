@@ -18,5 +18,5 @@ export class RegisterDto {
 
   @ApiProperty()
   @IsInt()
-  tel: number;
+  tel: string;
 }

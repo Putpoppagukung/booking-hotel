@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
@@ -10,14 +10,22 @@ export class UserService {
 
   async register(data: RegisterDto) {
     const passwordHash = await bcrypt.hash(data.password, 10);
-    return this.prisma.user.create({
-      data: {
-        username: data.username,
-        email: data.email,
-        passwordHash,
-        tel: data.tel,
-      },
-    });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          username: data.username,
+          email: data.email,
+          passwordHash,
+          tel: data.tel,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        // Prisma error: unique constraint failed
+        throw new ConflictException('Email, username, or tel already exists');
+      }
+      throw error;
+    }
   }
 
   async login(data: LoginDto) {

@@ -45,7 +45,7 @@ model User {
   bookings     Booking[] // One-to-many relation with bookings
   reviews      Review[] // One-to-many relation with reviews
   orders       Order[] // One-to-many relation with orders
-  tel          Int       @unique       
+  tel          String       @unique       
 }
 
 // Hotel model for lodging businesses
