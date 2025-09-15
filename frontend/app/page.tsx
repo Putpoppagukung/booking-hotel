@@ -38,7 +38,7 @@ const Home: React.FC = () => {
           <h1 className="text-2xl font-bold">Booking Hotel</h1>
           <nav>
             <Link href="/profile" className="mr-4 hover:underline">Profile</Link>
-            <Link href="/register" className="hover:underline text-yellow-400 font-semibold">register</Link>
+            <Link href="/login" className="hover:underline text-yellow-400 font-semibold">login</Link>
             
           </nav>
         </div>
