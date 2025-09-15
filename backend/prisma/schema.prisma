@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomAvailabilityStatus {
+  AVAILABLE
+  RESERVED
+  BOOKED
+  BLOCKED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// User model for guests and potentially admins
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String
+  preferences  Json? // Stores user preferences (e.g., search filters)
+  createdAt    DateTime  @default(now())
+  bookings     Booking[] // One-to-many relation with bookings
+  reviews      Review[] // One-to-many relation with reviews
+  orders       Order[] // One-to-many relation with orders
+  tel          Int       @unique       
+}
+
+// Hotel model for lodging businesses
+model Hotel {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  location    String // Full address or city
+  latitude    Float?
+  longitude   Float?
+  starRating  Float?
+  amenities   Json? // List of amenities (e.g., ["Wi-Fi", "Pool"])
+  contactInfo String?
+  rooms       Room[] // One-to-many relation with rooms
+  reviews     Review[] // One-to-many relation with reviews
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Room model for individual rooms or room types
+model Room {
+  id                 Int                    @id @default(autoincrement())
+  hotelId            Int
+  hotel              Hotel                  @relation(fields: [hotelId], references: [id])
+  roomNumber         String                 @db.VarChar(10)
+  roomType           String // e.g., Single, Double, Suite
+  price              Float // Base price per night
+  availabilityStatus RoomAvailabilityStatus @default(AVAILABLE)
+  maxOccupancy       Int // e.g., 2, 4
+  bookings           Booking[] // One-to-many relation with bookings
+  pricings           RoomPricing[] // One-to-many relation with dynamic pricing
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+}
+
+// RoomPricing model for dynamic pricing based on dates
+model RoomPricing {
+  id            Int      @id @default(autoincrement())
+  roomId        Int
+  room          Room     @relation(fields: [roomId], references: [id])
+  availableDate DateTime // Date for which the price applies
+  price         Float // Price for that specific date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([roomId, availableDate]) // Index for performance on availability queries
+}
+
+// Order model to group bookings and associate with payments
+model Order {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  totalAmount Float // Total amount for the order
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[] // One-to-many relation with bookings
+  payments    Payment[] // One-to-many relation with payments
+}
+
+// Booking model for individual room reservations
+model Booking {
+  id            Int           @id @default(autoincrement())
+  orderId       Int
+  order         Order         @relation(fields: [orderId], references: [id])
+  roomId        Int
+  room          Room          @relation(fields: [roomId], references: [id])
+  checkInDate   DateTime
+  checkOutDate  DateTime
+  bookingStatus BookingStatus @default(CONFIRMED)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  review        Review? // One-to-one relation with review (optional)
+  User          User?         @relation(fields: [userId], references: [id])
+  userId        Int?
+
+  @@index([roomId, checkInDate, checkOutDate]) // Index for availability queries
+  @@index([bookingStatus]) // Index for status queries
+}
+
+// Payment model for handling transactions
+model Payment {
+  id            Int           @id @default(autoincrement())
+  orderId       Int
+  order         Order         @relation(fields: [orderId], references: [id])
+  amount        Float
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod String // e.g., CREDIT_CARD, DEBIT_CARD
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([orderId, paymentStatus]) // Index for payment queries
+}
+
+// Review model for user feedback on hotels
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  hotelId   Int
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  bookingId Int?     @unique
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  rating    Float // e.g., 1.0 to 5.0
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
